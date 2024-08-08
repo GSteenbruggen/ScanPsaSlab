@@ -92,7 +92,7 @@
 
         function fetchCardInfo(certNumber) {
             document.getElementById('loading').style.display = 'block';
-            var token = 'i9sqoxskyfB7QiH2K8jkEAM_Hk572GkOHr5aVi4lA1VjbKkdEhV1mVbxtlXku27NvhNwG2u1unKKpK2hpDyr-3QPIIBk5ttZTI_gcMFFpH1PHJ5bBJmgFD92RzS036iqacd7rvO6w9MWCnVd2SbPTCPLVMFF5D3ds8-oX-UImrBR4Mmy5IztOF_l94EY0-VVz2VgGnau_x-8rwi1P42_w8YbJd7b3iJrY2V2_KN5YBj0grr-B2ihOKShktF9VQFCcxhi6xYkPAA5GuwXHb2Sm1HB5p4oWyrIWuHdfjpso9MdZ-Yc';
+            var token = '';
             var settings = {
                 async: true,
                 crossDomain: true,
@@ -165,13 +165,30 @@
             scanner.addListener('scan', onScanSuccess);
             Instascan.Camera.getCameras().then(function (cameras) {
                 if (cameras.length > 0) {
-                    scanner.start(cameras[0]);
+                    let selectedCamera = cameras[0];
+                    cameras.forEach(camera => {
+                        if (camera.name.toLowerCase().includes('back')) {
+                            selectedCamera = camera;
+                        }
+                    });
+                    scanner.start(selectedCamera);
                 } else {
                     console.error('No cameras found.');
+                    alert('No cameras found.');
                 }
             }).catch(function (e) {
                 console.error(e);
+                alert(`Error initializing camera: ${e}`);
             });
+
+            // Stop the scanner after 30 seconds if no QR code is detected
+            setTimeout(function() {
+                if (scanner._active) {
+                    scanner.stop();
+                    alert('No QR code detected. Scanner stopped.');
+                    document.getElementById('qr-reader').style.display = 'none';
+                }
+            }, 30000); // 30 seconds
         }
 
         let scanner;
