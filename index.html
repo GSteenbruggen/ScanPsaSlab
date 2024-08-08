@@ -63,7 +63,7 @@
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -71,7 +71,7 @@
         <input type="text" id="certNumberInput" placeholder="Enter Certification Number">
         <button id="fetchButton">Fetch Information</button>
         <button id="scanQrCodeButton">Scan QR Code</button>
-        <div id="qr-reader"></div>
+        <video id="qr-reader" style="width: 100%;"></video>
         <div id="loading">Loading...</div>
         <div id="result"></div>
     </div>
@@ -142,12 +142,12 @@
             }
         }
 
-        function onScanSuccess(decodedText, decodedResult) {
-            console.log(`Decoded text: ${decodedText}`);
-            const certNumber = extractCertNumberFromURL(decodedText);
+        function onScanSuccess(content) {
+            console.log(`Decoded content: ${content}`);
+            const certNumber = extractCertNumberFromURL(content);
             if (certNumber) {
                 alert('Success! Loading Your Card\'s Information Now');
-                qrCodeScanner.stop();
+                scanner.stop();
                 document.getElementById('qr-reader').style.display = 'none';
                 fetchCardInfo(certNumber);
             } else {
@@ -161,20 +161,20 @@
         }
 
         function startQrCodeScanner() {
-            qrCodeScanner = new Html5Qrcode("qr-reader");
-            qrCodeScanner.start(
-                { facingMode: "environment" },
-                {
-                    fps: 10,
-                    qrbox: 250
-                },
-                onScanSuccess
-            ).catch(err => {
-                console.error(`Unable to start the QR code scanner: ${err}`);
+            scanner = new Instascan.Scanner({ video: document.getElementById('qr-reader') });
+            scanner.addListener('scan', onScanSuccess);
+            Instascan.Camera.getCameras().then(function (cameras) {
+                if (cameras.length > 0) {
+                    scanner.start(cameras[0]);
+                } else {
+                    console.error('No cameras found.');
+                }
+            }).catch(function (e) {
+                console.error(e);
             });
         }
 
-        let qrCodeScanner;
+        let scanner;
 
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('qr-reader').style.display = 'none';
