@@ -147,7 +147,7 @@
         }
 
         function onScanSuccess(decodedText) {
-            alert(`Decoded text: ${decodedText}`);
+            console.log(`Decoded text: ${decodedText}`);
             const certNumber = extractCertNumberFromURL(decodedText);
             if (certNumber) {
                 alert('Success! Loading Your Card\'s Information Now');
@@ -159,8 +159,7 @@
         }
 
         function extractCertNumberFromURL(url) {
-            const urlParts = url.split('/');
-            return urlParts[urlParts.length - 1];
+            return url.replace(/\D/g, '');
         }
 
         function startQrCodeScanner() {
