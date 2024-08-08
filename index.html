@@ -147,7 +147,7 @@
         }
 
         function onScanSuccess(decodedText) {
-            console.log(`Decoded text: ${decodedText}`);
+            alert(`Decoded text: ${decodedText}`);
             const certNumber = extractCertNumberFromURL(decodedText);
             if (certNumber) {
                 alert('Success! Loading Your Card\'s Information Now');
