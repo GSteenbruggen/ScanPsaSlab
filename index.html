@@ -67,7 +67,7 @@
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://unpkg.com/qrcode-reader/dist/qrcode-reader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -146,8 +146,7 @@
             }
         }
 
-        function onScanSuccess(result) {
-            const decodedText = result.data;
+        function onScanSuccess(decodedText) {
             console.log(`Decoded text: ${decodedText}`);
             const certNumber = extractCertNumberFromURL(decodedText);
             if (certNumber) {
@@ -166,33 +165,39 @@
 
         function startQrCodeScanner() {
             const video = document.getElementById('qr-reader');
-            const qrcode = new QrcodeDecoder();
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const qrcodeDecoder = jsQR;
 
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
                 .then(stream => {
                     video.srcObject = stream;
                     video.play();
                     const intervalId = setInterval(() => {
-                        qrcode.decodeFromVideo(video)
-                            .then(result => {
-                                if (result) {
-                                    clearInterval(intervalId);
-                                    onScanSuccess(result);
-                                }
-                            })
-                            .catch(err => console.error(err));
+                        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                            const result = qrcodeDecoder(imageData.data, imageData.width, imageData.height);
+                            if (result) {
+                                clearInterval(intervalId);
+                                onScanSuccess(result.data);
+                            }
+                        }
                     }, 500); // Check every 500ms
+
+                    // Stop the scanner after 30 seconds if no QR code is detected
+                    setTimeout(() => {
+                        clearInterval(intervalId);
+                        stopQrCodeScanner();
+                        alert('No QR code detected. Scanner stopped.');
+                    }, 30000); // 30 seconds
                 })
                 .catch(err => {
                     console.error('Error accessing camera:', err);
                     alert(`Error accessing camera: ${err}`);
                 });
-
-            // Stop the scanner after 30 seconds if no QR code is detected
-            setTimeout(function() {
-                stopQrCodeScanner();
-                alert('No QR code detected. Scanner stopped.');
-            }, 30000); // 30 seconds
         }
 
         function stopQrCodeScanner() {
