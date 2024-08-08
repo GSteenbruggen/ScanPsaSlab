@@ -61,9 +61,13 @@
             display: none;
             margin-top: 20px;
         }
+
+        video {
+            width: 100%;
+        }
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
+    <script src="https://unpkg.com/qrcode-reader/dist/qrcode-reader.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -71,7 +75,7 @@
         <input type="text" id="certNumberInput" placeholder="Enter Certification Number">
         <button id="fetchButton">Fetch Information</button>
         <button id="scanQrCodeButton">Scan QR Code</button>
-        <video id="qr-reader" style="width: 100%;"></video>
+        <video id="qr-reader"></video>
         <div id="loading">Loading...</div>
         <div id="result"></div>
     </div>
@@ -92,7 +96,7 @@
 
         function fetchCardInfo(certNumber) {
             document.getElementById('loading').style.display = 'block';
-            var token = '';
+            var token = '7YiCS3h3FHc0d7NgthHEQCJE-XsY4k3rxmzBdUDHcK1DtC3UKMVwMxzjKqFNVmgOx1RT_0i0e119TExkEA3qd7M6FhFI685ZkpQ1uK6V9q5rW9qHyPvtkpcr4W8SdHuDu4QlgfTslC0sRpi9QFSqp7Vq6UKYri7pyc2I-UuJv2SGFcR6kbm9sUdQrAaGMkJmH1O8L9wg_LHtEtw0K96sfC2r87VL_MA_2pGC13-_0wQb9NJ319xX1Ei2By7tTUNKr-3cUcf-Ngw7iIyKOdWokE3Ulep2eeMg8CV_ku_AFTZSVbwj';
             var settings = {
                 async: true,
                 crossDomain: true,
@@ -142,13 +146,13 @@
             }
         }
 
-        function onScanSuccess(content) {
-            console.log(`Decoded content: ${content}`);
-            const certNumber = extractCertNumberFromURL(content);
+        function onScanSuccess(result) {
+            const decodedText = result.data;
+            console.log(`Decoded text: ${decodedText}`);
+            const certNumber = extractCertNumberFromURL(decodedText);
             if (certNumber) {
                 alert('Success! Loading Your Card\'s Information Now');
-                scanner.stop();
-                document.getElementById('qr-reader').style.display = 'none';
+                stopQrCodeScanner();
                 fetchCardInfo(certNumber);
             } else {
                 alert('Invalid QR code');
@@ -161,37 +165,46 @@
         }
 
         function startQrCodeScanner() {
-            scanner = new Instascan.Scanner({ video: document.getElementById('qr-reader') });
-            scanner.addListener('scan', onScanSuccess);
-            Instascan.Camera.getCameras().then(function (cameras) {
-                if (cameras.length > 0) {
-                    let selectedCamera = cameras[0];
-                    cameras.forEach(camera => {
-                        if (camera.name.toLowerCase().includes('back')) {
-                            selectedCamera = camera;
-                        }
-                    });
-                    scanner.start(selectedCamera);
-                } else {
-                    console.error('No cameras found.');
-                    alert('No cameras found.');
-                }
-            }).catch(function (e) {
-                console.error(e);
-                alert(`Error initializing camera: ${e}`);
-            });
+            const video = document.getElementById('qr-reader');
+            const qrcode = new QrcodeDecoder();
+
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.play();
+                    const intervalId = setInterval(() => {
+                        qrcode.decodeFromVideo(video)
+                            .then(result => {
+                                if (result) {
+                                    clearInterval(intervalId);
+                                    onScanSuccess(result);
+                                }
+                            })
+                            .catch(err => console.error(err));
+                    }, 500); // Check every 500ms
+                })
+                .catch(err => {
+                    console.error('Error accessing camera:', err);
+                    alert(`Error accessing camera: ${err}`);
+                });
 
             // Stop the scanner after 30 seconds if no QR code is detected
             setTimeout(function() {
-                if (scanner._active) {
-                    scanner.stop();
-                    alert('No QR code detected. Scanner stopped.');
-                    document.getElementById('qr-reader').style.display = 'none';
-                }
+                stopQrCodeScanner();
+                alert('No QR code detected. Scanner stopped.');
             }, 30000); // 30 seconds
         }
 
-        let scanner;
+        function stopQrCodeScanner() {
+            const video = document.getElementById('qr-reader');
+            const stream = video.srcObject;
+            if (stream) {
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            document.getElementById('qr-reader').style.display = 'none';
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('qr-reader').style.display = 'none';
